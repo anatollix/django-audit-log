@@ -5,6 +5,11 @@ from audit_log import registration, settings
 from audit_log.models import fields
 from audit_log.models.managers import AuditLogManager
 
+from rest_framework.exceptions import AuthenticationFailed
+from django.contrib.auth.middleware import get_user
+from rest_framework.authentication import TokenAuthentication
+
+
 def _disable_audit_log_managers(instance):
     for attr in dir(instance):
         try:
@@ -32,6 +37,14 @@ class UserLoggingMiddleware(object):
                 user = request.user
             else:
                 user = None
+
+                try:
+                    user_drf = TokenAuthentication().authenticate(request)
+                    if user_drf is not None:
+                        user = user_drf[0]
+                except AuthenticationFailed:
+                    pass
+
             session = request.session.session_key
             update_pre_save_info = curry(self._update_pre_save_info, user, session)
             update_post_save_info = curry(self._update_post_save_info, user, session)
